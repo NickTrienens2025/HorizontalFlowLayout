@@ -81,8 +81,10 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
         if rows.isEmpty { return cache.minSize }
         
         // Determine total width
-        var width = rows.map(\.width).max() ?? 0
-        if  let proposedWidth = proposal.width {
+        let widestSubview = subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        let rowMaxWidth = rows.map(\.width).max() ?? 0
+        var width = max(widestSubview, rowMaxWidth)
+        if let proposedWidth = proposal.width {
             width = max(width, proposedWidth)
         }
         
