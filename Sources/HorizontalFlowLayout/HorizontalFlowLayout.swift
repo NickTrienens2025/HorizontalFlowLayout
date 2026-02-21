@@ -167,45 +167,20 @@ public struct HorizontalFlowLayout: Layout {
         
         for (i, index) in subviews.indices.enumerated() {
             let size = sizes[i]
-            // Horizontal spacing from the last item
-            var spacing = currentRow.elements.last.map {
-                let lastIndex = subviews.indices.index(subviews.indices.startIndex, offsetBy: $0.offset)
-                return horizontalSpacing(subviews[lastIndex], subviews[index])
-            } ?? 0
+            
+            // Horizontal spacing from the last item in the current row
+            let spacing = currentRow.elements.isEmpty ? 0 : (
+                currentRow.elements.last.map {
+                    let lastIndex = subviews.indices.index(subviews.indices.startIndex, offsetBy: $0.offset)
+                    return horizontalSpacing(subviews[lastIndex], subviews[index])
+                } ?? 0
+            )
             
             let availableWidth = proposal.width ?? .infinity
             
-            // If current item is wider than available width, and we have items in current row,
-            // finish current row first
-            if size.width > availableWidth && !currentRow.elements.isEmpty {
-                currentRow.width = currentX
-                rows.append(currentRow)
-                
-                // Start a new row
-                currentRow = Row()
-                currentX = 0
-                spacing = 0
-            }
-            
-            // If we can't fit the new item in the current row, wrap to the next row
-            if currentX + size.width + spacing > availableWidth,
-               !currentRow.elements.isEmpty {
-                currentRow.width = currentX
-                rows.append(currentRow)
-                
-                // Start a new row
-                currentRow = Row()
-                currentX = 0
-                spacing = 0
-            }
-            
-            // Add item to current row - even if it's wider than available width,
-            // it still needs to be placed somewhere
-            currentRow.elements.append(Row.Element(offset: i, size: size, xOffset: currentX + spacing))
-            currentX += size.width + spacing
-            
-            // If this item is wider than available width, immediately start a new row
-            if size.width > availableWidth {
+            // If we can't fit the new item in the current row (and the row isn't empty), wrap to the next row
+            if currentX + size.width + spacing > availableWidth, !currentRow.elements.isEmpty {
+                // Finalize the current row
                 currentRow.width = currentX
                 rows.append(currentRow)
                 
@@ -213,11 +188,18 @@ public struct HorizontalFlowLayout: Layout {
                 currentRow = Row()
                 currentX = 0
             }
+            
+            // Add item to current row
+            // If it's the first item in the row, spacing is 0
+            let actualSpacing = currentRow.elements.isEmpty ? 0 : spacing
+            currentRow.elements.append(Row.Element(offset: i, size: size, xOffset: currentX + actualSpacing))
+            // The row's width should technically include the item's width but not trailing spacing for alignment
+            currentX += size.width + actualSpacing
+            currentRow.width = currentX
         }
         
         // Append the last row
         if !currentRow.elements.isEmpty {
-            currentRow.width = currentX
             rows.append(currentRow)
         }
         
