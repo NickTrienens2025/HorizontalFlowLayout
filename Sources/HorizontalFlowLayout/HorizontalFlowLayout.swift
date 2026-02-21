@@ -22,8 +22,7 @@ import SwiftUI
 ///      } 
 /// ```
 
-@MainActor
-public struct HorizontalFlowLayout: @preconcurrency Layout {
+public struct HorizontalFlowLayout: Layout {
     /// The alignment guide for subviews.
     public var alignment: Alignment
     
@@ -111,11 +110,14 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
                 let y = row.yOffset + anchor.y * (row.height - element.size.height)
                 let point = CGPoint(x: x + bounds.minX, y: y + bounds.minY)
                 
-                subviews[element.index].place(
-                    at: point,
-                    anchor: .topLeading,
-                    proposal: proposal
-                )
+                if element.offset < subviews.count {
+                    let index = subviews.indices.index(subviews.indices.startIndex, offsetBy: element.offset)
+                    subviews[index].place(
+                        at: point,
+                        anchor: .topLeading,
+                        proposal: proposal
+                    )
+                }
             }
         }
     }
@@ -124,7 +126,7 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
     struct Row {
         /// Represents a single element within a row
         struct Element {
-            var index: Int
+            var offset: Int
             var size: CGSize
             var xOffset: CGFloat
         }
@@ -163,11 +165,12 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
         var currentRow = Row()
         var currentX: CGFloat = 0
         
-        for index in subviews.indices {
-            let size = sizes[index]
+        for (i, index) in subviews.indices.enumerated() {
+            let size = sizes[i]
             // Horizontal spacing from the last item
             var spacing = currentRow.elements.last.map {
-                horizontalSpacing(subviews[$0.index], subviews[index])
+                let lastIndex = subviews.indices.index(subviews.indices.startIndex, offsetBy: $0.offset)
+                return horizontalSpacing(subviews[lastIndex], subviews[index])
             } ?? 0
             
             let availableWidth = proposal.width ?? .infinity
@@ -198,7 +201,7 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
             
             // Add item to current row - even if it's wider than available width,
             // it still needs to be placed somewhere
-            currentRow.elements.append(Row.Element(index: index, size: size, xOffset: currentX + spacing))
+            currentRow.elements.append(Row.Element(offset: i, size: size, xOffset: currentX + spacing))
             currentX += size.width + spacing
             
             // If this item is wider than available width, immediately start a new row
@@ -220,24 +223,26 @@ public struct HorizontalFlowLayout: @preconcurrency Layout {
         
         // Position rows vertically
         var currentY: CGFloat = 0
-        var previousMaxHeightIndex: Int?
+        var previousMaxHeightOffset: Int?
         
         for i in rows.indices {
             // Find the tallest element in this row
             let maxHeightElement = rows[i].elements.max {
                 $0.size.height < $1.size.height
             }
-            guard let tallestIndex = maxHeightElement?.index else { continue }
+            guard let tallestOffset = maxHeightElement?.offset else { continue }
             
             // Determine vertical spacing from the previous row's tallest element
-            let spacing = previousMaxHeightIndex.map {
-                verticalSpacing(subviews[$0], subviews[tallestIndex])
+            let spacing = previousMaxHeightOffset.map { prevOff in
+                let index1 = subviews.indices.index(subviews.indices.startIndex, offsetBy: prevOff)
+                let index2 = subviews.indices.index(subviews.indices.startIndex, offsetBy: tallestOffset)
+                return verticalSpacing(subviews[index1], subviews[index2])
             } ?? 0
             
             rows[i].yOffset = currentY + spacing
             rows[i].height = maxHeightElement?.size.height ?? 0
             currentY += rows[i].height + spacing
-            previousMaxHeightIndex = tallestIndex
+            previousMaxHeightOffset = tallestOffset
         }
         
         cache.rows = (hash, rows)
