@@ -169,11 +169,11 @@ public struct HorizontalFlowLayout: Layout {
             let size = sizes[i]
             
             // Horizontal spacing from the last item in the current row
-            let spacing = currentRow.elements.isEmpty ? 0 : (
+            let spacing: CGFloat = currentRow.elements.isEmpty ? 0.0 : (
                 currentRow.elements.last.map {
                     let lastIndex = subviews.indices.index(subviews.indices.startIndex, offsetBy: $0.offset)
                     return horizontalSpacing(subviews[lastIndex], subviews[index])
-                } ?? 0
+                } ?? 0.0
             )
             
             let availableWidth = proposal.width ?? .infinity
@@ -191,7 +191,7 @@ public struct HorizontalFlowLayout: Layout {
             
             // Add item to current row
             // If it's the first item in the row, spacing is 0
-            let actualSpacing = currentRow.elements.isEmpty ? 0 : spacing
+            let actualSpacing: CGFloat = currentRow.elements.isEmpty ? 0.0 : spacing
             currentRow.elements.append(Row.Element(offset: i, size: size, xOffset: currentX + actualSpacing))
             // The row's width should technically include the item's width but not trailing spacing for alignment
             currentX += size.width + actualSpacing
